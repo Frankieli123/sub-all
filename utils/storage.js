@@ -3,6 +3,115 @@ const path = require('path');
 
 const dataDir = process.env.DATA_DIR || './data';
 
+// Redis支持
+let redis = null;
+try {
+    if (process.env.REDIS_URL) {
+        const { createClient } = require('redis');
+        redis = createClient({
+            url: process.env.REDIS_URL
+        });
+
+        redis.on('error', (err) => {
+            console.error('Redis连接错误:', err);
+        });
+
+        redis.on('connect', () => {
+            console.log('✅ Redis连接成功');
+        });
+
+        // 连接Redis
+        redis.connect().catch(err => {
+            console.error('Redis连接失败:', err);
+            redis = null;
+        });
+    }
+} catch (error) {
+    console.error('Redis初始化失败:', error);
+    redis = null;
+}
+
+/**
+ * Redis KV存储实现
+ */
+class RedisKV {
+    constructor() {
+        this.redis = redis;
+        this.prefix = process.env.REDIS_PREFIX || 'cf-workers-sub:';
+    }
+
+    /**
+     * 获取完整的Redis key
+     */
+    getKey(key) {
+        return this.prefix + key;
+    }
+
+    /**
+     * 获取数据
+     */
+    async get(key) {
+        try {
+            if (!this.redis || !this.redis.isOpen) {
+                throw new Error('Redis连接不可用');
+            }
+            const value = await this.redis.get(this.getKey(key));
+            return value;
+        } catch (error) {
+            console.error(`读取Redis数据失败 ${key}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * 存储数据
+     */
+    async put(key, value) {
+        try {
+            if (!this.redis || !this.redis.isOpen) {
+                throw new Error('Redis连接不可用');
+            }
+            await this.redis.set(this.getKey(key), value);
+            return true;
+        } catch (error) {
+            console.error(`存储Redis数据失败 ${key}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * 删除数据
+     */
+    async delete(key) {
+        try {
+            if (!this.redis || !this.redis.isOpen) {
+                throw new Error('Redis连接不可用');
+            }
+            const result = await this.redis.del(this.getKey(key));
+            return result > 0;
+        } catch (error) {
+            console.error(`删除Redis数据失败 ${key}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * 检查数据是否存在
+     */
+    async exists(key) {
+        try {
+            if (!this.redis || !this.redis.isOpen) {
+                throw new Error('Redis连接不可用');
+            }
+            const result = await this.redis.exists(this.getKey(key));
+            return result > 0;
+        } catch (error) {
+            console.error(`检查Redis数据失败 ${key}:`, error);
+            return false;
+        }
+    }
+}
+
 /**
  * 文件系统KV存储实现
  */
@@ -74,8 +183,15 @@ class FileKV {
     }
 }
 
-// 创建全局KV实例
-const KV = new FileKV();
+// 创建全局KV实例 - 根据配置选择存储方式
+let KV;
+if (process.env.REDIS_URL && redis) {
+    KV = new RedisKV();
+    console.log('🔄 使用Redis存储');
+} else {
+    KV = new FileKV();
+    console.log('📁 使用文件系统存储');
+}
 
 /**
  * 迁移地址列表 - 完全按照原worker.js逻辑

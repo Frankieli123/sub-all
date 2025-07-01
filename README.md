@@ -15,6 +15,8 @@
 - ✅ **访问控制**: 基于token的访问权限控制，支持访客模式
 - ✅ **Telegram通知**: 访问日志实时推送到Telegram
 - ✅ **反向代理**: 支持URL重定向和代理功能
+- ✅ **双存储支持**: 支持文件系统存储和Redis存储，自动选择
+- ✅ **容器化部署**: 完整的Docker和Coolify部署支持
 - ✅ **简单部署**: 一键脚本部署，支持PM2和systemd管理
 
 ## 快速开始
@@ -42,7 +44,19 @@ chmod +x quick-deploy.sh
 # http://your-server:3000/auto
 ```
 
-#### 方式二：Docker 部署
+#### 方式二：Coolify 部署（推荐用于生产环境）
+
+```bash
+# 1. 在 Coolify 中创建新项目
+# 2. 选择 Git 仓库部署
+# 3. 使用 docker-compose.coolify.yml
+# 4. 配置环境变量（TOKEN, EXTERNAL_URL等）
+# 5. 自动部署完成
+
+# 特性：Redis存储 + 自动扩展 + 健康检查
+```
+
+#### 方式三：Docker 部署
 
 ```bash
 # 1. 下载项目
@@ -53,8 +67,8 @@ cd cf-workers-sub-nodejs
 cp .env.example .env
 nano .env
 
-# 3. 启动服务
-docker-compose up -d
+# 3. 启动服务（包含Redis）
+docker-compose --profile redis up -d
 
 # 4. 查看状态
 docker-compose ps
@@ -94,6 +108,7 @@ TGID=                        # Chat ID
 
 ### 📚 部署文档
 
+- **[Coolify 部署指南](COOLIFY-DEPLOYMENT.md)** - 使用 Coolify 部署（Redis存储）
 - **[VPS 部署指南](VPS-DEPLOYMENT-GUIDE.md)** - 详细的 VPS 部署步骤
 - **[Docker 部署指南](DOCKER-DEPLOYMENT.md)** - 使用 Docker 快速部署
 - **[基础部署文档](DEPLOYMENT.md)** - 通用部署说明
